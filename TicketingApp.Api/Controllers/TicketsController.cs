@@ -1,4 +1,37 @@
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using TicketingApp.Application.Tickets.ReserveTicket;
+
+namespace TicketingApp.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class TicketsController : ControllerBase
+{
+    private readonly ISender _sender; // MediatR'ın sadece istek gönderen arayüzü
+
+    // Artık 100 tane Handler'a ihtiyacımız yok. Sadece ISender yeterli.
+    public TicketsController(ISender sender)
+    {
+        _sender = sender;
+    }
+
+    [HttpPost("{id:guid}/reserve")]
+    public async Task<IActionResult> Reserve(Guid id, CancellationToken cancellationToken)
+    {
+        var command = new ReserveTicketCommand(id);
+        
+        // Sender, doğru handler'ı otomatik bulup çalıştıracak!
+        var result = await _sender.Send(command, cancellationToken);
+
+        if (result.IsFailure)
+            return BadRequest(new { Error = result.Error.Code, Message = result.Error.Message });
+
+        return Ok();
+    }
+}
+
+/*using Microsoft.AspNetCore.Mvc;
 using TicketingApp.Application.Tickets.ReserveTicket;
 
 namespace TicketingApp.Api.Controllers;
@@ -32,3 +65,4 @@ public class TicketsController : ControllerBase
         return Ok();
     }
 }
+*/
