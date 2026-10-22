@@ -18,17 +18,17 @@ public class TicketsController : ControllerBase
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
-    {
-        var query = new GetTicketByIdQuery(id);
-        var result = await _sender.Send(query, cancellationToken);
-
-        if (result.IsFailure)
-        {
-            return NotFound(new { Error = result.Error.Code, Message = result.Error.Message });
-        }
-
-        return Ok(result.Value);
-    }
+         {
+             var query = new GetTicketByIdQuery(id);
+             var result = await _sender.Send(query, cancellationToken);
+     
+             if (result.IsFailure)
+             {
+                 return NotFound(new { Error = result.Error.Code, Message = result.Error.Message });
+             }
+     
+             return Ok(result.Value);
+         }
 
     [HttpPost("{id:guid}/reserve")]
     public async Task<IActionResult> Reserve(Guid id, CancellationToken cancellationToken)
