@@ -53,7 +53,9 @@ Katmanlar iç içe geçmiş halkalar gibidir. **Bağımlılık oku daima dışar
 ### 2.1. Domain Katmanı (`TicketingApp.Domain`)
 İş kurallarının (Business Rules) ve verinin özünün korunduğu çekirdektir.
 
-- **Rich Domain Model (Zengin Model):** `Ticket.cs` içerisindeki alanlar `private set` ile korunur. Durum değişikliği sadece iş kuralını işleten metotlar (`Reserve()`) ile gerçekleşir.
+- **Rich Domain Model (Zengin Model):**
+  - `Ticket.cs`: Rezervasyon durumu ve koltuk bilgisi `private set` ile korunur. `Reserve()` metodu ile iş kuralı işletilir.
+  - `Event.cs`: Etkinlik adı, lokasyonu ve tarih aralıkları korunur. `Create()` fabrika metodu ile tarih ve ad doğrulanır; `Cancel()` metodu ile etkinlik iptal edilir.
 - **Değer Nesneleri (Value Objects):** `SeatNumber.cs`, `record` olarak tanımlanmıştır. Format kurallarını (boş olmama, 5 karakteri geçmeme) kendi içerisinde doğrular; bu sayede primitive obsession (ilkel tip takıntısı) engellenir.
 - **Result Pattern:** İş kurallarında veya doğrulamalarda `Exception` fırlatılmaz; `Result`, `Result<T>` ve `Error` nesneleri ile öngörülebilir ve hızlı bir dönüş sağlanır.
 
@@ -61,31 +63,43 @@ Katmanlar iç içe geçmiş halkalar gibidir. **Bağımlılık oku daima dışar
 Kullanım senaryolarını (Use Cases) organize eder.
 
 - **CQRS Ayrımı:**
-  - **Command (Yazma):** `ReserveTicketCommand` & `ReserveTicketCommandHandler` -> Domain iş mantığını ve EF Core Unit of Work'ü çalıştırır.
-  - **Query (Okuma):** `GetTicketByIdQuery` & `GetTicketByIdQueryHandler` -> Dapper ve doğrudan ham SQL ile hızlıca salt-okunur DTO (`TicketResponse`) döner.
-- **Cross-Cutting Concerns (Boru Hattı Filtreleri):**
+  - **Commands (Yazma):**
+    - `ReserveTicketCommand` & `ReserveTicketCommandHandler`: Domain iş mantığını ve Unit of Work'ü çalıştırır.
+    - `CreateEventCommand` & `CreateEventCommandHandler`: Yeni etkinlik oluşturur ve veritabanına ekler.
+  - **Queries (Okuma):**
+    - `GetTicketByIdQuery` & `GetTicketByIdQueryHandler`: Dapper ile salt-okunur bilet DTO'su (`TicketResponse`) döner.
+    - `GetEventByIdQuery` & `GetEventByIdQueryHandler`: Dapper ile etkinlik detay DTO'su (`EventResponse`) döner.
+    - `GetEventsQuery` & `GetEventsQueryHandler`: Dapper ile tüm etkinlik listesini döner.
+- **Cross-Cutting Concerns (Boru Hattı Filtreleri - `Application/Behaviors`):**
   - `LoggingBehavior<TRequest, TResponse>`: Her isteğin başlangıç ve bitişini otomatik loglar.
   - `ValidationBehavior<TRequest, TResponse>`: İstek handler'a ulaşmadan önce FluentValidation kurallarını çalıştırır, geçersizse isteği kesip `Result.Failure` döner.
-- **Arayüz Sözleşmeleri (Abstractions):**
+- **Arayüz Sözleşmeleri (Abstractions & Repositories):**
   - `ITicketRepository`: Bilet veri erişim arayüzü.
+  - `IEventRepository`: Etkinlik veri erişim arayüzü.
   - `IUnitOfWork`: Değişiklikleri tek bir işlemde veritabanına kaydetme sözleşmesi.
   - `ISqlConnectionFactory`: Dapper için veritabanı bağlantısı üretme sözleşmesi.
 
 ### 2.3. Infrastructure Katmanı (`TicketingApp.Infrastructure`)
 Veritabanı, dosya sistemleri ve dış servislerle konuşan altyapıdır.
 
-- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar.
-- **Fluent Mapping:** `TicketConfiguration.cs`, veritabanı şemasını `IEntityTypeConfiguration<Ticket>` ile ayarlar. `SeatNumber` değer nesnesini veritabanına yazarken string'e dönüştürür (`HasConversion`).
+- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar (`Tickets` ve `Events` DbSet'leri).
+- **Fluent Mapping:** 
+  - `TicketConfiguration.cs`: `SeatNumber` değer nesnesini `HasConversion` ile string'e dönüştürür.
+  - `EventConfiguration.cs`: Etkinlik tablosunu, kısıtlarını ve maksimum uzunluklarını yapılandırır.
 - **PostgreSQL & Dapper:** `SqlConnectionFactory`, `NpgsqlConnection` oluşturur.
 
 ### 2.4. Presentation / API Katmanı (`TicketingApp.Api`)
 Kullanıcı veya istemcilerin sisteme girdiği kapıdır.
 
-- **İnce Kontrolörler (Thin Controllers):** `TicketsController` sadece MediatR `ISender` nesnesine bağımlıdır. İsteği içeri fırlatır, gelen `Result` nesnesine göre HTTP 200, 400 veya 404 döner.
+- **İnce Kontrolörler (Thin Controllers):**
+  - `TicketsController`: Bilet sorgulama ve rezervasyon işlemleri.
+  - `EventsController`: Etkinlik oluşturma (`POST /api/events`), tekil getirme (`GET /api/events/{id}`) ve listeleme (`GET /api/events`).
 - **Temiz `Program.cs`:** Her katman kendi servislerini `AddApplication()` ve `AddInfrastructure()` extension metotları ile yükler; `Program.cs` karmaşadan uzaktır.
 
 ### 2.5. Test Katmanı (`TicketingApp.Domain.UnitTests`)
-Clean Architecture kurallarına göre birim testler Domain katmanından ayrı bir test projesinde tutulur. `TicketTests.cs` üzerinden iş kuralları veritabanına ihtiyaç duymadan milisaniyeler içinde test edilir.
+Clean Architecture kurallarına göre birim testler Domain katmanından ayrı bir test projesinde tutulur:
+- `TicketTests.cs`: Bilet iş kuralları testi.
+- `EventTests.cs`: Etkinlik oluşturma, tarih kontrolü ve iptal kuralları testi.
 
 ---
 

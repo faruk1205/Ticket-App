@@ -1,6 +1,28 @@
 @TicketingApp.Api_HostAddress = http://localhost:5209
 
-GET {{TicketingApp.Api_HostAddress}}/weatherforecast/
+### 1. Etkinlik Oluştur (Create Event)
+POST {{TicketingApp.Api_HostAddress}}/api/events
+Content-Type: application/json
+
+{
+  "name": "Yaz Konseri 2026",
+  "location": "Harbiye Cemil Topuzlu Açıkhava Tiyatrosu",
+  "startDate": "2026-08-15T20:00:00Z",
+  "endDate": "2026-08-15T23:30:00Z"
+}
+
+### 2. Tüm Etkinlikleri Getir (Get All Events)
+GET {{TicketingApp.Api_HostAddress}}/api/events
 Accept: application/json
 
-###
+### 3. Id ile Etkinlik Getir (Get Event by Id)
+GET {{TicketingApp.Api_HostAddress}}/api/events/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+### 4. Id ile Bilet Getir (Get Ticket by Id)
+GET {{TicketingApp.Api_HostAddress}}/api/tickets/00000000-0000-0000-0000-000000000000
+Accept: application/json
+
+### 5. Bilet Rezerve Et (Reserve Ticket)
+POST {{TicketingApp.Api_HostAddress}}/api/tickets/00000000-0000-0000-0000-000000000000/reserve
+Accept: application/json

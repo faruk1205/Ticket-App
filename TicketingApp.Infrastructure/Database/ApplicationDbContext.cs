@@ -8,6 +8,7 @@ namespace TicketingApp.Infrastructure.Database;
 public class ApplicationDbContext : DbContext, IUnitOfWork
 {
     public DbSet<Ticket> Tickets { get; set; }
+    public DbSet<Event> Events { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
