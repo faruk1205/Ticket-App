@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TicketingApp.Application.Exceptions;
 using TicketingApp.Application.Repositories;
 using TicketingApp.Domain.Entities;
 
@@ -20,6 +21,17 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }
 
-    // IUnitOfWork içindeki SaveChangesAsync zaten DbContext'in içinde var olduğu için 
-    // ekstra bir şey yazmamıza gerek kalmıyor, direkt arayüzü karşılıyor.
+    // IUnitOfWork sözleşmesi için SaveChangesAsync override edilir.
+    // EF Core'un DbUpdateConcurrencyException'ı yakalanıp mimarimize uygun ConcurrencyException'a dönüştürülür.
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw new ConcurrencyException("Veritabanında eşzamanlılık çakışması meydana geldi. Kayıt başka bir işlem tarafından güncellendi.", ex);
+        }
+    }
 }

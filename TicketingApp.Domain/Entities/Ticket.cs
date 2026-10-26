@@ -10,6 +10,7 @@ public sealed class Ticket : Entity
     public Guid EventId { get; private set; }
     public SeatNumber Seat { get; private set; }
     public bool IsReserved { get; private set; }
+    public uint Version { get; private set; } // Eşzamanlılık kontrolü (Concurrency Token)
 
     // EF Core için parametresiz kurucu
     private Ticket() : base(Guid.Empty)

@@ -10,6 +10,7 @@ public sealed class Event : Entity
     public DateTime StartDate { get; private set; }
     public DateTime EndDate { get; private set; }
     public bool IsActive { get; private set; }
+    public uint Version { get; private set; } // Eşzamanlılık kontrolü (Concurrency Token)
 
     // EF Core için private parametresiz yapıcı metot
     private Event() : base(Guid.Empty)

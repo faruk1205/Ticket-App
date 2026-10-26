@@ -38,6 +38,11 @@ public class TicketsController : ControllerBase
 
         if (result.IsFailure)
         {
+            if (result.Error.Code == "Ticket.ConcurrencyConflict")
+            {
+                return Conflict(new { Error = result.Error.Code, Message = result.Error.Message });
+            }
+
             return BadRequest(new { Error = result.Error.Code, Message = result.Error.Message });
         }
 

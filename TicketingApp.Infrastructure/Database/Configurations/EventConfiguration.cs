@@ -28,5 +28,8 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
 
         builder.Property(e => e.IsActive)
                .IsRequired();
+
+        // PostgreSQL xmin sistem kolonunu Version alanı üzerinden Concurrency Token olarak tanımlıyoruz (İyimser Eşzamanlılık)
+        builder.Property(e => e.Version).IsRowVersion();
     }
 }

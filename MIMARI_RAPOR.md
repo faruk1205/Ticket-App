@@ -58,13 +58,14 @@ Katmanlar iç içe geçmiş halkalar gibidir. **Bağımlılık oku daima dışar
   - `Event.cs`: Etkinlik adı, lokasyonu ve tarih aralıkları korunur. `Create()` fabrika metodu ile tarih ve ad doğrulanır; `Cancel()` metodu ile etkinlik iptal edilir.
 - **Değer Nesneleri (Value Objects):** `SeatNumber.cs`, `record` olarak tanımlanmıştır. Format kurallarını (boş olmama, 5 karakteri geçmeme) kendi içerisinde doğrular; bu sayede primitive obsession (ilkel tip takıntısı) engellenir.
 - **Result Pattern:** İş kurallarında veya doğrulamalarda `Exception` fırlatılmaz; `Result`, `Result<T>` ve `Error` nesneleri ile öngörülebilir ve hızlı bir dönüş sağlanır.
+- **Eşzamanlılık (Concurrency Token):** `Ticket` ve `Event` entity'leri üzerinde `uint Version` alanı bulunur; bu alan çift rezervasyon (double booking) ve eşzamanlı çakışmaları engellemek için Concurrency Token görevi görür.
 
 ### 2.2. Application Katmanı (`TicketingApp.Application`)
 Kullanım senaryolarını (Use Cases) organize eder.
 
 - **CQRS Ayrımı:**
   - **Commands (Yazma):**
-    - `ReserveTicketCommand` & `ReserveTicketCommandHandler`: Domain iş mantığını ve Unit of Work'ü çalıştırır.
+    - `ReserveTicketCommand` & `ReserveTicketCommandHandler`: Domain iş mantığını ve Unit of Work'ü çalıştırır. Olası eşzamanlılık çakışmalarında (`ConcurrencyException`) `Ticket.ConcurrencyConflict` hatası döner.
     - `CreateEventCommand` & `CreateEventCommandHandler`: Yeni etkinlik oluşturur ve veritabanına ekler.
   - **Queries (Okuma):**
     - `GetTicketByIdQuery` & `GetTicketByIdQueryHandler`: Dapper ile salt-okunur bilet DTO'su (`TicketResponse`) döner.
@@ -78,21 +79,23 @@ Kullanım senaryolarını (Use Cases) organize eder.
   - `IEventRepository`: Etkinlik veri erişim arayüzü.
   - `IUnitOfWork`: Değişiklikleri tek bir işlemde veritabanına kaydetme sözleşmesi.
   - `ISqlConnectionFactory`: Dapper için veritabanı bağlantısı üretme sözleşmesi.
+- **Özel İstisnalar (`Application/Exceptions`):**
+  - `ConcurrencyException`: EF Core bağımlılığı olmadan eşzamanlılık çakışmalarını Application katmanında temsil eder.
 
 ### 2.3. Infrastructure Katmanı (`TicketingApp.Infrastructure`)
 Veritabanı, dosya sistemleri ve dış servislerle konuşan altyapıdır.
 
-- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar (`Tickets` ve `Events` DbSet'leri).
+- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar (`Tickets` ve `Events` DbSet'leri). `SaveChangesAsync` esnasında EF Core'un `DbUpdateConcurrencyException` hatasını yakalayarak mimarimize ait `ConcurrencyException` fırlatır.
 - **Fluent Mapping:** 
-  - `TicketConfiguration.cs`: `SeatNumber` değer nesnesini `HasConversion` ile string'e dönüştürür.
-  - `EventConfiguration.cs`: Etkinlik tablosunu, kısıtlarını ve maksimum uzunluklarını yapılandırır.
+  - `TicketConfiguration.cs`: `SeatNumber` değer nesnesini `HasConversion` ile string'e dönüştürür. `Version` alanını PostgreSQL `xmin` sistem kolonu üzerinden Concurrency Token (`IsRowVersion`) olarak yapılandırır.
+  - `EventConfiguration.cs`: Etkinlik tablosunu, kısıtlarını ve maksimum uzunluklarını yapılandırır; `Version` alanını `IsRowVersion` olarak işaretler.
 - **PostgreSQL & Dapper:** `SqlConnectionFactory`, `NpgsqlConnection` oluşturur.
 
 ### 2.4. Presentation / API Katmanı (`TicketingApp.Api`)
 Kullanıcı veya istemcilerin sisteme girdiği kapıdır.
 
 - **İnce Kontrolörler (Thin Controllers):**
-  - `TicketsController`: Bilet sorgulama ve rezervasyon işlemleri.
+  - `TicketsController`: Bilet sorgulama ve rezervasyon işlemleri. Çakışma durumunda (`Ticket.ConcurrencyConflict`) `409 Conflict` HTTP durum kodu döner.
   - `EventsController`: Etkinlik oluşturma (`POST /api/events`), tekil getirme (`GET /api/events/{id}`) ve listeleme (`GET /api/events`).
 - **Temiz `Program.cs`:** Her katman kendi servislerini `AddApplication()` ve `AddInfrastructure()` extension metotları ile yükler; `Program.cs` karmaşadan uzaktır.
 

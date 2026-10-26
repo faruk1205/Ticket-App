@@ -21,5 +21,8 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
                )
                .HasColumnName("SeatNumber")
                .HasMaxLength(5);
+
+        // PostgreSQL xmin sistem kolonunu Version alanı üzerinden Concurrency Token olarak tanımlıyoruz (İyimser Eşzamanlılık)
+        builder.Property(t => t.Version).IsRowVersion();
     }
 }

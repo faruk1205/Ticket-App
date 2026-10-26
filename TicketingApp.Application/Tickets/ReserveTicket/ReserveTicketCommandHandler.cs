@@ -29,9 +29,17 @@ public class ReserveTicketCommandHandler : IRequestHandler<ReserveTicketCommand,
         if (reserveResult.IsFailure)
             return reserveResult;
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return Result.Success();
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return Result.Success();
+        }
+        catch (TicketingApp.Application.Exceptions.ConcurrencyException)
+        {
+            return Result.Failure(new Error(
+                "Ticket.ConcurrencyConflict", 
+                "Bilet siz işlem yaparken başka bir kullanıcı tarafından rezerve edildi. Lütfen tekrar deneyin."));
+        }
     }
 }
 
