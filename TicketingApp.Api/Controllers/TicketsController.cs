@@ -31,9 +31,12 @@ public class TicketsController : ControllerBase
          }
 
     [HttpPost("{id:guid}/reserve")]
-    public async Task<IActionResult> Reserve(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Reserve(
+        Guid id, 
+        [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey,
+        CancellationToken cancellationToken)
     {
-        var command = new ReserveTicketCommand(id);
+        var command = new ReserveTicketCommand(id, idempotencyKey ?? Guid.Empty);
         var result = await _sender.Send(command, cancellationToken);
 
         if (result.IsFailure)

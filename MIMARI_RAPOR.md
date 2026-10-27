@@ -73,10 +73,12 @@ Kullanım senaryolarını (Use Cases) organize eder.
     - `GetEventsQuery` & `GetEventsQueryHandler`: Dapper ile tüm etkinlik listesini döner.
 - **Cross-Cutting Concerns (Boru Hattı Filtreleri - `Application/Behaviors`):**
   - `LoggingBehavior<TRequest, TResponse>`: Her isteğin başlangıç ve bitişini otomatik loglar.
+  - `IdempotencyBehavior<TRequest, TResponse>`: `IIdempotentCommand` ile işaretli komutların daha önce çalışıp çalışmadığını kontrol eder. İstek daha önce tamamlanmışsa handler'ı çalıştırmadan ilk başarılı cevabı döner.
   - `ValidationBehavior<TRequest, TResponse>`: İstek handler'a ulaşmadan önce FluentValidation kurallarını çalıştırır, geçersizse isteği kesip `Result.Failure` döner.
 - **Arayüz Sözleşmeleri (Abstractions & Repositories):**
   - `ITicketRepository`: Bilet veri erişim arayüzü.
   - `IEventRepository`: Etkinlik veri erişim arayüzü.
+  - `IIdempotencyService`: Mükerrer isteklerin saklanması ve sorgulanması arayüzü.
   - `IUnitOfWork`: Değişiklikleri tek bir işlemde veritabanına kaydetme sözleşmesi.
   - `ISqlConnectionFactory`: Dapper için veritabanı bağlantısı üretme sözleşmesi.
 - **Özel İstisnalar (`Application/Exceptions`):**
@@ -85,18 +87,20 @@ Kullanım senaryolarını (Use Cases) organize eder.
 ### 2.3. Infrastructure Katmanı (`TicketingApp.Infrastructure`)
 Veritabanı, dosya sistemleri ve dış servislerle konuşan altyapıdır.
 
-- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar (`Tickets` ve `Events` DbSet'leri). `SaveChangesAsync` esnasında EF Core'un `DbUpdateConcurrencyException` hatasını yakalayarak mimarimize ait `ConcurrencyException` fırlatır.
+- **EF Core Entegrasyonu:** `ApplicationDbContext` hem EF DbContext'tir hem de `IUnitOfWork` sözleşmesini karşılar (`Tickets`, `Events` ve `IdempotentRequests` DbSet'leri). `SaveChangesAsync` esnasında EF Core'un `DbUpdateConcurrencyException` hatasını yakalayarak mimarimize ait `ConcurrencyException` fırlatır.
 - **Fluent Mapping:** 
   - `TicketConfiguration.cs`: `SeatNumber` değer nesnesini `HasConversion` ile string'e dönüştürür. `Version` alanını PostgreSQL `xmin` sistem kolonu üzerinden Concurrency Token (`IsRowVersion`) olarak yapılandırır.
   - `EventConfiguration.cs`: Etkinlik tablosunu, kısıtlarını ve maksimum uzunluklarını yapılandırır; `Version` alanını `IsRowVersion` olarak işaretler.
+  - `IdempotentRequestConfiguration.cs`: İdempotency kayıtlarının saklandığı tablo şemasını belirler.
+- **Idempotency Servisi:** `IdempotencyService`, işlenen komutların yanıtlarını ve anahtarlarını veritabanında saklayıp yönetir.
 - **PostgreSQL & Dapper:** `SqlConnectionFactory`, `NpgsqlConnection` oluşturur.
 
 ### 2.4. Presentation / API Katmanı (`TicketingApp.Api`)
 Kullanıcı veya istemcilerin sisteme girdiği kapıdır.
 
 - **İnce Kontrolörler (Thin Controllers):**
-  - `TicketsController`: Bilet sorgulama ve rezervasyon işlemleri. Çakışma durumunda (`Ticket.ConcurrencyConflict`) `409 Conflict` HTTP durum kodu döner.
-  - `EventsController`: Etkinlik oluşturma (`POST /api/events`), tekil getirme (`GET /api/events/{id}`) ve listeleme (`GET /api/events`).
+  - `TicketsController`: Bilet sorgulama ve rezervasyon işlemleri. HTTP `Idempotency-Key` başlığını alarak `ReserveTicketCommand`'e iletir.
+  - `EventsController`: Etkinlik oluşturma (`POST /api/events` - `Idempotency-Key` destekli), tekil getirme (`GET /api/events/{id}`) ve listeleme (`GET /api/events`).
 - **Temiz `Program.cs`:** Her katman kendi servislerini `AddApplication()` ve `AddInfrastructure()` extension metotları ile yükler; `Program.cs` karmaşadan uzaktır.
 
 ### 2.5. Test Katmanı (`TicketingApp.Domain.UnitTests`)

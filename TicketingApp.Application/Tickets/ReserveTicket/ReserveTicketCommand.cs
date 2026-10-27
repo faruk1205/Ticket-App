@@ -1,8 +1,10 @@
+using System;
 using MediatR;
+using TicketingApp.Application.Abstractions.Idempotency;
 using TicketingApp.Domain.Primitives;
 
 namespace TicketingApp.Application.Tickets.ReserveTicket;
 
-// IRequest<Result> diyerek MediatR'a diyoruz ki: "Bu bir istektir ve geriye Result döner."
-// Command'lar (veri değiştiren işlemler) C#'ta record olarak tanımlanır, veri taşırlar.
-public record ReserveTicketCommand(Guid TicketId) : IRequest<Result>;
+// IIdempotentCommand<Result> ile bu komutun idempotency boru hattına girmesini sağlıyoruz.
+// RequestId varsayılan olarak Guid.Empty gelebilir; bu durumda idempotency pas geçilir.
+public record ReserveTicketCommand(Guid TicketId, Guid RequestId = default) : IIdempotentCommand<Result>;

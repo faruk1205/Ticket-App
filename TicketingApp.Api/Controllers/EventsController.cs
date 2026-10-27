@@ -46,13 +46,17 @@ public class EventsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateEventRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateEventRequest request, 
+        [FromHeader(Name = "Idempotency-Key")] Guid? idempotencyKey,
+        CancellationToken cancellationToken)
     {
         var command = new CreateEventCommand(
             request.Name, 
             request.Location, 
             request.StartDate, 
-            request.EndDate);
+            request.EndDate,
+            idempotencyKey ?? Guid.Empty);
 
         var result = await _sender.Send(command, cancellationToken);
 

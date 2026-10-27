@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TicketingApp.Application.Exceptions;
 using TicketingApp.Application.Repositories;
 using TicketingApp.Domain.Entities;
+using TicketingApp.Infrastructure.Idempotency;
 
 namespace TicketingApp.Infrastructure.Database;
 
@@ -10,6 +11,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 {
     public DbSet<Ticket> Tickets { get; set; }
     public DbSet<Event> Events { get; set; }
+    public DbSet<IdempotentRequest> IdempotentRequests { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {

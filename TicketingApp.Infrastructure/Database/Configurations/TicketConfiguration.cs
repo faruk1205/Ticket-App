@@ -26,3 +26,8 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.Property(t => t.Version).IsRowVersion();
     }
 }
+
+/*Bu sınıf, Entity Framework Core'a Ticket nesnesini veritabanına nasıl eşleştireceğini anlatan yapıl
+andırma sınıfıdır. Özellikle veritabanında farklı bir biçimde saklanması gereken alanları ve özel davranışları tanımlar.
+modelde tanımladığın her alan için bu sınıfta ayrıca Property() yazmak zorunda değilsin. EF Core birçok alanı varsayılan kurallara göre otomatik eşleştirir.*/
+

@@ -27,6 +27,7 @@ public static class DependencyInjection
         services.AddScoped<ITicketRepository, TicketRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<ISqlConnectionFactory, SqlConnectionFactory>();
+        services.AddScoped<TicketingApp.Application.Abstractions.Idempotency.IIdempotencyService, TicketingApp.Infrastructure.Idempotency.IdempotencyService>();
 
         return services;
     }
